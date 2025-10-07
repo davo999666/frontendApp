@@ -1,23 +1,20 @@
-import { useContext, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { createCloud, rectCollision } from "../utils/function.js";
-import {
-    addSentenceKnow,
-    addWordLearn,
-    clearWordData,
-} from "../features/word/wordSlice.js";
-import { GameRefContext } from "../utils/gameScreenContext.js";
-import { removeFirstItem } from "../features/word/sentencesSlice.js";
+import { createCloud } from "../utils/function.js";
+import {addSentenceKnow, addWordLearn, clearWordData,} from "../features/word/wordSlice.js";
+import { removeFirstItem, addSentences } from "../features/word/sentencesSlice.js";
+import { useLazyFetchSentencesQuery } from "../../api/apiGame.js";
+import { setUserData } from "../features/user/userSlice.js";
 
-const Cloud = ({ clouds, setClouds }) => {
+const Cloud = ({ clouds, setClouds, gameRef }) => {
     const dispatch = useDispatch();
-    const animationRef = useRef();
-    const gameRef = useContext(GameRefContext);
     const currentSent = useSelector((state) => state.word.currentSent);
     const sentences = useSelector((state) => state.sentences);
+    const currentUser = useSelector((state) => state.user.currentUser);
+    const [fetchSentences] = useLazyFetchSentencesQuery();
     const processedRef = useRef(false);
 
-    // Load new sentence data when all clouds disappear
+    // 🧩 Load new sentence data when all clouds disappear
     useEffect(() => {
         if (
             clouds.length === 0 &&
@@ -38,21 +35,24 @@ const Cloud = ({ clouds, setClouds }) => {
         if (clouds.length > 0) processedRef.current = false;
     }, [clouds.length, sentences.currentSent.length, dispatch]);
 
-    // Create clouds for current sentence
+    // 🌥️ Create clouds for current sentence
     useEffect(() => {
         if (!currentSent.length || !gameRef.current) return;
 
         let index = 0;
-
         const interval = setInterval(() => {
             if (index >= currentSent.length) {
                 clearInterval(interval);
                 return;
             }
 
-            const word = currentSent[index];
+            const wordData = currentSent[index];
+            const word =
+                typeof wordData === "object" ? Object.keys(wordData)[0] : wordData;
+
             const x = Math.random() * gameRef.current.offsetWidth;
             const y = Math.random() * 80 - 80;
+
             const cloudInstance = createCloud(
                 Math.floor(x),
                 Math.floor(y),
@@ -60,58 +60,65 @@ const Cloud = ({ clouds, setClouds }) => {
                 gameRef.current.offsetWidth,
                 gameRef.current.offsetHeight
             );
+
+            // Keep cloud inside bounds
             if (cloudInstance.x + cloudInstance.width > gameRef.current.offsetWidth) {
                 cloudInstance.x = gameRef.current.offsetWidth - cloudInstance.width;
             }
-            if (cloudInstance.x < 0) {
-                cloudInstance.x = 0;
-            }
+            if (cloudInstance.x < 0) cloudInstance.x = 0;
 
             setClouds((prev) => [...prev, cloudInstance]);
             index++;
-        }, 900); // ⏱ one cloud every second
+        }, 900);
 
-        // 🧹 Cleanup
         return () => clearInterval(interval);
     }, [currentSent]);
 
-    // Update size on screen resize
+    // 🧠 Fetch new sentences when needed (moved from Game.jsx)
     useEffect(() => {
-        setClouds((prev) => {
-            prev.forEach((cloud) =>
-                cloud.changeSize(gameRef.current.offsetWidth, gameRef.current.offsetHeight)
-            );
-            return [...prev];
-        });
-    }, [gameRef.current?.offsetWidth, gameRef.current?.offsetHeight]);
+        if (!currentUser?.level || !currentUser?.know || !currentUser?.learn) {
+            const savedUserData = localStorage.getItem("userData");
+            if (savedUserData) {
+                dispatch(setUserData(JSON.parse(savedUserData)));
+            } else {
+                console.warn("⚠️ No saved user data found");
+                return;
+            }
+        }
+        const token = localStorage.getItem("token");
+        if (!token) {
+            console.warn("⚠️ Token missing — skipping sentence fetch.");
+            return;
+        }
+        if (
+            sentences.currentSent.length < 5 &&
+            currentUser?.level &&
+            currentUser?.know &&
+            currentUser?.learn
+        ) {
+            const loadSentences = async () => {
+                try {
+                    const result = await fetchSentences({
+                        level: currentUser.level,
+                        know: currentUser.know,
+                        learn: currentUser.learn,
+                    });
 
-    // Animate cloud movement
-    useEffect(() => {
-        const gameWidth = gameRef.current.offsetWidth;
-        const gameHeight = gameRef.current.offsetHeight;
-        const animate = () => {
-            setClouds((prevClouds) => {
-                return prevClouds
-                    .map((cloud) => {
-                        cloud.moveCloud(gameWidth);
-                        prevClouds.forEach((anotherCloud) => {
-                            if (cloud !== anotherCloud && rectCollision(cloud, anotherCloud)) {
-                                cloud.collision(anotherCloud);
-                            }
-                        });
-                        return cloud;
-                    })
-                    .filter((cloud) => cloud.y <= gameHeight + cloud.height);
-            });
+                    if (result.data) {
+                        dispatch(addSentences(result.data));
+                    } else if (result.error) {
+                        console.error("❌ Fetch error:", result.error);
+                    }
+                } catch (err) {
+                    console.error("❌ Failed to fetch sentences:", err);
+                }
+            };
 
-            animationRef.current = requestAnimationFrame(animate);
-        };
+            loadSentences();
+        }
+    }, [currentUser, sentences.currentSent.length, fetchSentences, dispatch]);
 
-        animationRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(animationRef.current);
-    }, [setClouds]);
-
-    // Draw clouds
+    // ☁️ Render clouds
     return (
         <>
             {clouds.map((cloud, index) => (
@@ -146,7 +153,9 @@ const Cloud = ({ clouds, setClouds }) => {
                             }px`,
                         }}
                     >
-            {cloud.word}
+            {typeof cloud.word === "object"
+                ? Object.keys(cloud.word)[0]
+                : cloud.word}
           </span>
                 </div>
             ))}

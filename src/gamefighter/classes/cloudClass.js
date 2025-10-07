@@ -28,7 +28,7 @@ class CloudBase {
 
         this.centerX = this.x + this.width / 2;
         this.centerY = this.y + this.height / 2;
-        this.speed = 0.2;
+        this.speed = 0.07;
     }
 
     moveCloud(gameWidth) {

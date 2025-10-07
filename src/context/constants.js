@@ -1,1 +1,0 @@
-export const navItems = ["home", "games", "about"]

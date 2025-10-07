@@ -19,7 +19,6 @@ const Cloud = ({ clouds, setClouds }) => {
 
     // Load new sentence data when all clouds disappear
     useEffect(() => {
-        console.log("1")
         if (
             clouds.length === 0 &&
             sentences.currentSent.length > 0 &&
@@ -41,7 +40,6 @@ const Cloud = ({ clouds, setClouds }) => {
 
     // Create clouds for current sentence
     useEffect(() => {
-        console.log("2")
         if (!currentSent.length || !gameRef.current) return;
 
         let index = 0;
@@ -79,7 +77,6 @@ const Cloud = ({ clouds, setClouds }) => {
 
     // Update size on screen resize
     useEffect(() => {
-        console.log("3")
         setClouds((prev) => {
             prev.forEach((cloud) =>
                 cloud.changeSize(gameRef.current.offsetWidth, gameRef.current.offsetHeight)
@@ -90,36 +87,29 @@ const Cloud = ({ clouds, setClouds }) => {
 
     // Animate cloud movement
     useEffect(() => {
-        console.log("4")
         const gameWidth = gameRef.current.offsetWidth;
         const gameHeight = gameRef.current.offsetHeight;
-
-        let lastUpdate = 0;
-
-        const animate = (time) => {
-            if (time - lastUpdate > 100) { // update every 100 ms
-                setClouds((prevClouds) =>
-                    prevClouds
-                        .map((cloud) => {
-                            cloud.moveCloud(gameWidth);
-                            for (const another of prevClouds) {
-                                if (cloud !== another && rectCollision(cloud, another)) {
-                                    cloud.collision(another);
-                                }
+        const animate = () => {
+            setClouds((prevClouds) => {
+                return prevClouds
+                    .map((cloud) => {
+                        cloud.moveCloud(gameWidth);
+                        prevClouds.forEach((anotherCloud) => {
+                            if (cloud !== anotherCloud && rectCollision(cloud, anotherCloud)) {
+                                cloud.collision(anotherCloud);
                             }
-                            return cloud;
-                        })
-                        .filter((cloud) => cloud.y <= gameHeight + cloud.height)
-                );
-                lastUpdate = time;
-            }
+                        });
+                        return cloud;
+                    })
+                    .filter((cloud) => cloud.y <= gameHeight + cloud.height);
+            });
 
             animationRef.current = requestAnimationFrame(animate);
         };
 
         animationRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(animationRef.current);
-    }, []);
+    }, [setClouds]);
 
     // Draw clouds
     return (

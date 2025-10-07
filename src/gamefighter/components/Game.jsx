@@ -22,21 +22,15 @@ const Game = () => {
     // Background scrolling
     useEffect(() => {
         const speed = 0.2;
-        let lastTime = 0;
-
-        const loop = (time) => {
-            if (time - lastTime > 33) { // ~30fps
-                heightRef.current += speed;
-                if (heightRef.current >= 5000) heightRef.current = 0;
-                if (backgroundRef.current) {
-                    backgroundRef.current.style.backgroundPosition = `0px ${heightRef.current}px`;
-                }
-                lastTime = time;
+        const loop = () => {
+            heightRef.current += speed;
+            if (heightRef.current >= 5000) heightRef.current = 0;
+            if (backgroundRef.current) {
+                backgroundRef.current.style.backgroundPosition = `0px ${heightRef.current}px`;
             }
             requestAnimationFrame(loop);
         };
-
-        requestAnimationFrame(loop);
+        loop();
     }, []);
 
     // Fetch sentences if less than 5

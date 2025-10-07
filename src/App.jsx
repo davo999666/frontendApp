@@ -3,7 +3,7 @@ import Footer from "./main/Footer.jsx";
 import MainRoutes from "./main/Main.routes.jsx";
 import Header from "./main/Header.jsx";
 import { PageProvider } from "./context/PageContext.jsx";
-import {BrowserRouter} from "react-router-dom";
+import { HashRouter} from "react-router-dom";
 
 function App() {
 
@@ -11,11 +11,11 @@ function App() {
   return (
       <div className="h-screen flex flex-col overflow-hidden">
           <PageProvider>
-              <BrowserRouter>
+              <HashRouter>
                  <Header/>
                  <MainRoutes/>
                  <Footer />
-              </BrowserRouter>
+              </HashRouter>
           </PageProvider>
       </div>
 
